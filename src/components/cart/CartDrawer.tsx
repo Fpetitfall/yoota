@@ -90,19 +90,19 @@ const CartDrawer = () => {
 
                         <div className="flex items-center justify-between mt-3">
                           {/* Quantity Controls */}
-                          <div className="flex items-center border border-black/10 rounded-full px-3 py-1 space-x-4">
+                          <div className="flex items-center border border-black rounded-full overflow-hidden">
                             <button
                               onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                              className="hover:opacity-50 transition-opacity"
+                              className="px-3 py-2 hover:bg-accent active:bg-black active:text-white transition-all"
                             >
-                              <Minus className="w-3 h-3" />
+                              <Minus className="w-3.5 h-3.5" />
                             </button>
-                            <span className="font-bold text-sm w-3 text-center">{item.quantity}</span>
+                            <span className="font-black text-sm w-8 text-center">{item.quantity}</span>
                             <button
                               onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                              className="hover:opacity-50 transition-opacity"
+                              className="px-3 py-2 hover:bg-accent active:bg-black active:text-white transition-all"
                             >
-                              <Plus className="w-3 h-3" />
+                              <Plus className="w-3.5 h-3.5" />
                             </button>
                           </div>
 
