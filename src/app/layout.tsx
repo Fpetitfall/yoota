@@ -12,6 +12,8 @@ export const metadata: Metadata = {
   description: "Découvrez la nouvelle collection Nike Air Max. Design premium, confort légendaire.",
 };
 
+import { CartProvider } from "@/context/CartContext";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -20,7 +22,9 @@ export default function RootLayout({
   return (
     <html lang="fr" className={`${outfit.variable} antialiased`}>
       <body className="bg-white text-black font-sans">
-        {children}
+        <CartProvider>
+          {children}
+        </CartProvider>
       </body>
     </html>
   );

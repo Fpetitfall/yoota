@@ -2,12 +2,14 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { Search, ShoppingBag, Heart, User, Menu, X } from "lucide-react";
+import { Search, Heart, ShoppingBag, User, Menu, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useCart } from "@/context/CartContext";
 
 const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { totalItems } = useCart();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -86,9 +88,11 @@ const Header = () => {
             <Link href="/cart">
               <button className="p-2 hover:bg-accent rounded-full transition-colors relative">
                 <ShoppingBag className="w-6 h-6" />
-                <span className="absolute top-1 right-1 bg-primary text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center">
-                  2
-                </span>
+                {totalItems > 0 && (
+                  <span className="absolute top-1 right-1 bg-primary text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-black">
+                    {totalItems}
+                  </span>
+                )}
               </button>
             </Link>
             <button className="p-2 hover:bg-accent rounded-full transition-colors hidden md:block">

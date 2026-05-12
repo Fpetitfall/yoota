@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Heart, Star } from "lucide-react";
 import { Product } from "@/types";
 import { motion } from "framer-motion";
+import { useCart } from "@/context/CartContext";
 
 interface ProductCardProps {
   product: Product;
@@ -13,6 +14,7 @@ interface ProductCardProps {
 const ProductCard = ({ product }: ProductCardProps) => {
   const [isHovered, setIsHovered] = useState(false);
   const [isFavorite, setIsFavorite] = useState(product.isFavorite || false);
+  const { addToCart } = useCart();
 
   return (
     <motion.div
@@ -23,14 +25,14 @@ const ProductCard = ({ product }: ProductCardProps) => {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="relative aspect-square bg-accent overflow-hidden mb-4">
+      <div className="relative aspect-square bg-accent overflow-hidden mb-4 rounded-2xl">
         {product.tag && (
           <span className="absolute top-4 left-4 z-10 bg-brand-volt px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-full shadow-sm text-black">
             {product.tag}
           </span>
         )}
         <button
-          className="absolute top-4 right-4 z-10 p-2 bg-white/0 hover:bg-white/100 rounded-full transition-all duration-300 opacity-0 group-hover:opacity-100"
+          className="absolute top-4 right-4 z-10 p-2 bg-white/0 hover:bg-white/100 rounded-full transition-all duration-300 opacity-0 group-hover:opacity-100 shadow-sm"
           onClick={(e) => {
             e.stopPropagation();
             setIsFavorite(!isFavorite);
@@ -42,12 +44,26 @@ const ProductCard = ({ product }: ProductCardProps) => {
             }`}
           />
         </button>
+        
+        {/* Quick Add Button */}
+        <div className="absolute inset-x-4 bottom-4 z-10 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              addToCart(product);
+            }}
+            className="w-full bg-white text-black py-3 rounded-full font-bold text-xs uppercase tracking-widest hover:bg-brand-volt transition-colors shadow-xl"
+          >
+            Ajouter au panier
+          </button>
+        </div>
+
         <Image
           src={product.image}
           alt={product.name}
           fill
           className={`object-cover transition-transform duration-700 ${
-            isHovered ? "scale-110" : "scale-100"
+            isHovered ? "scale-105" : "scale-100"
           }`}
         />
       </div>
