@@ -9,7 +9,7 @@ import { useCart } from "@/context/CartContext";
 const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { totalItems } = useCart();
+  const { totalItems, openDrawer } = useCart();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -85,16 +85,14 @@ const Header = () => {
             <button className="p-2 hover:bg-accent rounded-full transition-colors">
               <Heart className="w-6 h-6" />
             </button>
-            <Link href="/cart">
-              <button className="p-2 hover:bg-accent rounded-full transition-colors relative">
-                <ShoppingBag className="w-6 h-6" />
-                {totalItems > 0 && (
-                  <span className="absolute top-1 right-1 bg-primary text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-black">
-                    {totalItems}
-                  </span>
-                )}
-              </button>
-            </Link>
+            <button onClick={openDrawer} className="p-2 hover:bg-accent rounded-full transition-colors relative">
+              <ShoppingBag className="w-6 h-6" />
+              {totalItems > 0 && (
+                <span className="absolute top-1 right-1 bg-primary text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-black">
+                  {totalItems}
+                </span>
+              )}
+            </button>
             <button className="p-2 hover:bg-accent rounded-full transition-colors hidden md:block">
               <User className="w-6 h-6" />
             </button>
