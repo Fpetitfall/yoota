@@ -3,17 +3,34 @@
 import React, { useState } from "react";
 import { ChevronDown, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useRouter, useSearchParams } from "next/navigation";
 
 const SortDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [selected, setSelected] = useState("Nouveautés");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  
+  const currentSort = searchParams.get("sort") || "newest";
 
   const options = [
-    "Nouveautés",
-    "Prix : Croissant",
-    "Prix : Décroissant",
-    "Les mieux notés",
+    { label: "Nouveautés", value: "newest" },
+    { label: "Prix : Croissant", value: "price_asc" },
+    { label: "Prix : Décroissant", value: "price_desc" },
+    { label: "Les mieux notés", value: "rating" },
   ];
+  
+  const selectedOption = options.find(o => o.value === currentSort) || options[0];
+
+  const handleSelect = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value === "newest") {
+      params.delete("sort");
+    } else {
+      params.set("sort", value);
+    }
+    router.push(`/?${params.toString()}`, { scroll: false });
+    setIsOpen(false);
+  };
 
   return (
     <div className="relative">
@@ -21,7 +38,7 @@ const SortDropdown = () => {
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center space-x-2 text-[11px] sm:text-xs font-bold bg-white border border-black px-4 py-2 rounded-full hover:bg-black hover:text-white transition-all duration-300"
       >
-        <span className="uppercase tracking-widest whitespace-nowrap">Trier par : {selected}</span>
+        <span className="uppercase tracking-widest whitespace-nowrap">Trier par : {selectedOption.label}</span>
         <ChevronDown className={`w-3 h-3 transition-transform duration-500 ${isOpen ? "rotate-180" : ""}`} />
       </button>
 
@@ -41,19 +58,16 @@ const SortDropdown = () => {
             >
               {options.map((option) => (
                 <button
-                  key={option}
-                  onClick={() => {
-                    setSelected(option);
-                    setIsOpen(false);
-                  }}
+                  key={option.value}
+                  onClick={() => handleSelect(option.value)}
                   className={`w-full flex items-center justify-between px-4 py-3.5 text-sm rounded-xl transition-all duration-200 ${
-                    selected === option
+                    currentSort === option.value
                       ? "bg-black text-white font-bold"
                       : "hover:bg-accent font-medium text-primary/80 hover:text-primary"
                   }`}
                 >
-                  <span>{option}</span>
-                  {selected === option && <Check className="w-4 h-4" />}
+                  <span>{option.label}</span>
+                  {currentSort === option.value && <Check className="w-4 h-4" />}
                 </button>
               ))}
             </motion.div>

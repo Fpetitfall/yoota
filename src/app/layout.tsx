@@ -13,7 +13,9 @@ export const metadata: Metadata = {
 };
 
 import { CartProvider } from "@/context/CartContext";
+import { WishlistProvider } from "@/context/WishlistContext";
 import CartDrawer from "@/components/cart/CartDrawer";
+import WishlistDrawer from "@/components/wishlist/WishlistDrawer";
 
 export default function RootLayout({
   children,
@@ -23,10 +25,13 @@ export default function RootLayout({
   return (
     <html lang="fr" className={`${outfit.variable} antialiased`}>
       <body className="bg-white text-black font-sans">
-        <CartProvider>
-          {children}
-          <CartDrawer />
-        </CartProvider>
+        <WishlistProvider>
+          <CartProvider>
+            {children}
+            <CartDrawer />
+            <WishlistDrawer />
+          </CartProvider>
+        </WishlistProvider>
       </body>
     </html>
   );
