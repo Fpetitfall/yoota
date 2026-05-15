@@ -59,7 +59,7 @@ const CheckoutPage = () => {
   };
 
   return (
-    <PayPalScriptProvider options={{ "client-id": process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || "sb" }}>
+    <PayPalScriptProvider options={{ clientId: process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || "sb" }}>
     <div className="min-h-screen bg-white">
       <Header />
       
@@ -148,7 +148,7 @@ const CheckoutPage = () => {
                       onApprove={async (data, actions) => {
                         if (actions.order) {
                           const details = await actions.order.capture();
-                          alert("Transaction réussie par " + details.payer.name?.given_name);
+                          alert("Transaction réussie par " + (details.payer?.name?.given_name || "Client"));
                           router.push("/checkout/success");
                         }
                       }}
