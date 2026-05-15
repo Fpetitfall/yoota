@@ -3,12 +3,15 @@
 import React, { useState } from "react";
 import { ChevronDown, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useTransition } from "react";
 
 const SortDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const [isPending, startTransition] = useTransition();
   
   const currentSort = searchParams.get("sort") || "newest";
 
@@ -28,7 +31,9 @@ const SortDropdown = () => {
     } else {
       params.set("sort", value);
     }
-    router.push(`/?${params.toString()}`, { scroll: false });
+    startTransition(() => {
+      router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    });
     setIsOpen(false);
   };
 

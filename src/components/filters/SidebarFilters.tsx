@@ -3,7 +3,8 @@
 import React, { useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useTransition } from "react";
 
 interface FilterSectionProps {
   title: string;
@@ -43,6 +44,8 @@ const FilterSection = ({ title, children, defaultOpen = true }: FilterSectionPro
 const SidebarFilters = ({ isMobile = false }: { isMobile?: boolean }) => {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const [isPending, startTransition] = useTransition();
 
   const updateFilter = (key: string, value: string, isMultiple: boolean = true) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -68,15 +71,18 @@ const SidebarFilters = ({ isMobile = false }: { isMobile?: boolean }) => {
       }
     }
     
-    router.push(`/?${params.toString()}`, { scroll: false });
+    startTransition(() => {
+      router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    });
   };
 
   const isChecked = (key: string, value: string) => {
-    return (searchParams.get(key)?.split(",") || []).includes(value);
+    const current = (searchParams.get(key)?.split(",") || []).map(v => v.trim().toLowerCase());
+    return current.includes(value.trim().toLowerCase());
   };
 
   const isRadioChecked = (key: string, value: string) => {
-    return searchParams.get(key) === value;
+    return searchParams.get(key)?.trim().toLowerCase() === value.trim().toLowerCase();
   };
 
   return (
@@ -85,8 +91,8 @@ const SidebarFilters = ({ isMobile = false }: { isMobile?: boolean }) => {
         <div className="mb-6">
           <h2 className="text-2xl font-semibold mb-2">Filtres</h2>
           <button 
-            onClick={() => router.push('/', { scroll: false })}
-            className="text-primary text-sm font-medium underline underline-offset-4 hover:text-black transition-colors"
+            onClick={() => startTransition(() => router.push(pathname, { scroll: false }))}
+            className={`text-primary text-sm font-medium underline underline-offset-4 hover:text-black transition-colors ${isPending ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             Effacer tous les filtres
           </button>
@@ -96,8 +102,8 @@ const SidebarFilters = ({ isMobile = false }: { isMobile?: boolean }) => {
       {isMobile && (
         <div className="mb-4">
           <button 
-            onClick={() => router.push('/', { scroll: false })}
-            className="w-full py-2 border border-black rounded-full font-bold text-xs uppercase tracking-widest hover:bg-black hover:text-white transition-colors"
+            onClick={() => startTransition(() => router.push(pathname, { scroll: false }))}
+            className={`w-full py-2 border border-black rounded-full font-bold text-xs uppercase tracking-widest hover:bg-black hover:text-white transition-colors ${isPending ? 'opacity-50' : ''}`}
           >
             Effacer tous les filtres
           </button>

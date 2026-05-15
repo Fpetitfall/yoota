@@ -151,9 +151,12 @@ const CartPage = () => {
                     <span>{total.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</span>
                   </div>
                 </div>
-                <button className="w-full bg-black text-white py-4 rounded-full font-black text-sm mt-8 hover:bg-black/90 transition-all uppercase tracking-widest active:scale-[0.98]">
+                <Link 
+                  href="/checkout"
+                  className="block w-full bg-black text-white py-4 rounded-full font-black text-sm mt-8 hover:bg-red-600 transition-all uppercase tracking-widest active:scale-[0.98] text-center"
+                >
                   Passer la commande
-                </button>
+                </Link>
                 <div className="mt-6 flex flex-wrap justify-center gap-3 opacity-30">
                   <div className="text-[9px] font-black border border-black px-2 py-0.5 rounded">VISA</div>
                   <div className="text-[9px] font-black border border-black px-2 py-0.5 rounded">MC</div>

@@ -48,7 +48,7 @@ export default async function CatalogTemplate({
   let baseProducts = products.filter(baseFilter);
 
   let filteredProducts = baseProducts.filter(product => {
-    // 1. Recherche par mot-clé
+    // 1. Recherche par mot-clé (q)
     if (q) {
       const searchableText = normalize(
         `${product.name} ${product.category} ${product.gender} ${product.tag || ""}`
@@ -57,36 +57,49 @@ export default async function CatalogTemplate({
       if (!queryTerms.every(term => searchableText.includes(term))) return false;
     }
 
-    // 2. Filtre Sexe
+    // 2. Filtre Sexe (gender)
     if (genders.length > 0) {
-      if (!genders.includes(product.gender)) return false;
+      // On compare de manière insensible à la casse et on trim
+      const productGender = product.gender.trim();
+      if (!genders.some(g => g.trim().toLowerCase() === productGender.toLowerCase())) return false;
     }
 
-    // 3. Filtre Catégorie
+    // 3. Filtre Catégorie (category)
     if (categories.length > 0) {
       const productText = normalize(`${product.name} ${product.category}`);
-      const hasMatch = categories.some(cat => productText.includes(normalize(cat)));
+      const hasMatch = categories.some(cat => {
+        const normalizedCat = normalize(cat.trim());
+        return normalizedCat && productText.includes(normalizedCat);
+      });
       if (!hasMatch) return false;
     }
 
-    // 4. Filtre Couleur
-    if (colors.length > 0 && product.colors) {
-      const hasMatch = colors.some(color => product.colors?.includes(color));
+    // 4. Filtre Couleur (color)
+    if (colors.length > 0) {
+      if (!product.colors || product.colors.length === 0) return false;
+      // On compare les codes hexadécimaux
+      const hasMatch = colors.some(c => 
+        product.colors?.some(pc => pc.toLowerCase() === c.trim().toLowerCase())
+      );
       if (!hasMatch) return false;
     }
 
-    // 5. Filtre Taille
-    if (sizes.length > 0 && product.sizes) {
-      const hasMatch = sizes.some(size => product.sizes?.includes(size));
+    // 5. Filtre Taille (size)
+    if (sizes.length > 0) {
+      if (!product.sizes || product.sizes.length === 0) return false;
+      const hasMatch = sizes.some(s => 
+        product.sizes?.some(ps => ps.toString().trim() === s.trim())
+      );
       if (!hasMatch) return false;
     }
 
-    // 6. Filtre Prix
+    // 6. Filtre Prix (price)
     if (price) {
-      if (price === 'under75' && product.price >= 75) return false;
-      if (price === '75-120' && (product.price < 75 || product.price > 120)) return false;
-      if (price === '120-160' && (product.price < 120 || product.price > 160)) return false;
-      if (price === 'over160' && product.price <= 160) return false;
+      const p = product.price;
+      if (price === 'under75' && p >= 75) return false;
+      if (price === '75-120' && (p < 75 || p > 120)) return false;
+      if (price === '120-160' && (p < 120 || p > 160)) return false;
+      if (price === 'over160' && p <= 160) return false;
     }
 
     return true;

@@ -41,9 +41,15 @@ const ProductCard = ({ product }: ProductCardProps) => {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
+      layout
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+      transition={{ 
+        duration: 0.3,
+        ease: "easeOut",
+        layout: { duration: 0.4, type: "spring", stiffness: 200, damping: 25 }
+      }}
       className="group"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -100,6 +106,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
             src={product.image}
             alt={product.name}
             fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
             className={`object-cover transition-transform duration-700 ${
               isHovered ? "scale-105" : "scale-100"
             }`}

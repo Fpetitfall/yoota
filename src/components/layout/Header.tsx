@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useTransition } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
@@ -26,6 +26,7 @@ const Header = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false); // Déconnecté par défaut
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
   const searchRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
 
@@ -69,10 +70,12 @@ const Header = () => {
     e.preventDefault();
     const query = searchQuery.trim();
     if (query) {
-      router.push(`/collections?q=${encodeURIComponent(query)}`);
-      setIsMobileMenuOpen(false);
-      setIsMobileSearchOpen(false);
-      setShowSuggestions(false);
+      startTransition(() => {
+        router.push(`/collections?q=${encodeURIComponent(query)}`);
+        setIsMobileMenuOpen(false);
+        setIsMobileSearchOpen(false);
+        setShowSuggestions(false);
+      });
     }
   };
 
@@ -171,7 +174,9 @@ const Header = () => {
                               setSearchQuery(query);
                               setShowSuggestions(false);
                               setIsMobileSearchOpen(false);
-                              router.push(`/collections?q=${encodeURIComponent(query)}`);
+                              startTransition(() => {
+                                router.push(`/collections?q=${encodeURIComponent(query)}`);
+                              });
                             }} 
                             className="flex items-center space-x-3 p-3 hover:bg-accent cursor-pointer transition-colors"
                           >
@@ -298,7 +303,9 @@ const Header = () => {
                               const query = product.name;
                               setSearchQuery(query);
                               setShowSuggestions(false);
-                              router.push(`/collections?q=${encodeURIComponent(query)}`);
+                              startTransition(() => {
+                                router.push(`/collections?q=${encodeURIComponent(query)}`);
+                              });
                             }} 
                             className="flex items-center space-x-3 p-3 hover:bg-accent cursor-pointer transition-colors"
                           >
@@ -470,7 +477,9 @@ const Header = () => {
                               setSearchQuery(query);
                               setShowSuggestions(false);
                               setIsMobileMenuOpen(false);
-                              router.push(`/collections?q=${encodeURIComponent(query)}`);
+                              startTransition(() => {
+                                router.push(`/collections?q=${encodeURIComponent(query)}`);
+                              });
                             }} 
                             className="flex items-center space-x-3 p-3 hover:bg-accent cursor-pointer transition-colors"
                           >
