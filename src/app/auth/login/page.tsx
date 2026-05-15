@@ -43,7 +43,7 @@ export default function LoginPage() {
 
         {/* Cyber Grid Texture */}
         <div className="absolute inset-0 opacity-[0.03] pointer-events-none" 
-             style={{ backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)', size: '50px 50px', backgroundSize: '60px 60px' }} 
+             style={{ backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)', backgroundSize: '60px 60px' }} 
         />
 
         {/* Big Background Text */}
