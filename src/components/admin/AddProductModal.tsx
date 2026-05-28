@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Plus, Minus, ImageIcon, Loader2 } from "lucide-react";
+import { X, Plus, ImageIcon, Loader2, Upload, Trash2, CheckCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 interface AddProductModalProps {
@@ -33,11 +33,44 @@ const PRESET_COLORS = [
   "#0000ff", "#008000", "#ff6600", "#800080", "#ffd700",
 ];
 
+const ACCEPTED_FORMATS = ".jpg,.jpeg,.png,.webp";
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 Mo
+
+// Convertit un fichier image en WebP via le Canvas API
+async function convertToWebP(file: File, quality: number = 0.85): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return reject(new Error("Canvas context non disponible"));
+      ctx.drawImage(img, 0, 0);
+      canvas.toBlob(
+        (blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error("Échec de la conversion WebP"));
+        },
+        "image/webp",
+        quality
+      );
+    };
+    img.onerror = () => reject(new Error("Impossible de charger l'image"));
+    img.src = URL.createObjectURL(file);
+  });
+}
+
 export default function AddProductModal({ isOpen, onClose, onSuccess, editProduct }: AddProductModalProps) {
   const supabase = createClient();
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [categories, setCategories] = useState<any[]>([]);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState({
     name: "",
@@ -66,6 +99,7 @@ export default function AddProductModal({ isOpen, onClose, onSuccess, editProduc
         colors: editProduct.colors || [],
         sizes: editProduct.sizes || [],
       });
+      if (editProduct.image) setImagePreview(editProduct.image);
     } else {
       resetForm();
     }
@@ -85,6 +119,8 @@ export default function AddProductModal({ isOpen, onClose, onSuccess, editProduc
       rating: "4.5", reviews: "0", tag: "", colors: [], sizes: [],
     });
     setError(null);
+    setImagePreview(null);
+    setImageFile(null);
   };
 
   const toggleColor = (color: string) => {
@@ -105,29 +141,121 @@ export default function AddProductModal({ isOpen, onClose, onSuccess, editProduc
     }));
   };
 
+  // Gestion du fichier sélectionné (via clic ou drag & drop)
+  const handleFileSelect = useCallback((file: File) => {
+    const validTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+    if (!validTypes.includes(file.type)) {
+      setError("Format non accepté. Utilisez JPG, PNG ou WebP.");
+      return;
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      setError("L'image est trop lourde (max 5 Mo).");
+      return;
+    }
+    setError(null);
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  }, []);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handleFileSelect(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) handleFileSelect(file);
+  };
+
+  const removeImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    setForm((prev) => ({ ...prev, image: "" }));
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  // Upload vers Supabase Storage avec conversion WebP
+  const uploadImageToSupabase = async (file: File): Promise<string> => {
+    setUploading(true);
+    try {
+      // Conversion automatique en WebP
+      const webpBlob = await convertToWebP(file);
+      const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}.webp`;
+      const filePath = `products/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("products")
+        .upload(filePath, webpBlob, {
+          contentType: "image/webp",
+          cacheControl: "3600",
+          upsert: false,
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Récupérer l'URL publique
+      const { data: publicUrlData } = supabase.storage
+        .from("products")
+        .getPublicUrl(filePath);
+
+      return publicUrlData.publicUrl;
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name || !form.price || !form.image || !form.category) {
+
+    // Vérifications
+    if (!form.name || !form.price || !form.category) {
       setError("Veuillez remplir tous les champs obligatoires (*).");
       return;
     }
+    if (!imageFile && !form.image) {
+      setError("Veuillez sélectionner une image pour le produit.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
-    const payload = {
-      name: form.name.trim(),
-      category: form.category.trim(),
-      gender: form.gender,
-      price: parseFloat(form.price),
-      image: form.image.trim(),
-      rating: parseFloat(form.rating),
-      reviews: parseInt(form.reviews),
-      tag: form.tag || null,
-      colors: form.colors,
-      sizes: form.sizes,
-    };
-
     try {
+      let imageUrl = form.image;
+
+      // Upload de la nouvelle image si un fichier a été sélectionné
+      if (imageFile) {
+        imageUrl = await uploadImageToSupabase(imageFile);
+      }
+
+      const payload = {
+        name: form.name.trim(),
+        category: form.category.trim(),
+        gender: form.gender,
+        price: parseFloat(form.price),
+        image: imageUrl,
+        rating: parseFloat(form.rating),
+        reviews: parseInt(form.reviews),
+        tag: form.tag || null,
+        colors: form.colors,
+        sizes: form.sizes,
+      };
+
       if (editProduct) {
         const { error: updateError } = await supabase
           .from("products")
@@ -135,7 +263,6 @@ export default function AddProductModal({ isOpen, onClose, onSuccess, editProduc
           .eq("id", editProduct.id);
         if (updateError) throw updateError;
       } else {
-        // Générer un ID unique basé sur le timestamp
         const newId = `prod_${Date.now()}`;
         const { error: insertError } = await supabase
           .from("products")
@@ -283,32 +410,98 @@ export default function AddProductModal({ isOpen, onClose, onSuccess, editProduc
                   </datalist>
                 </div>
 
-                {/* Image URL */}
+                {/* Zone d'Upload d'Image */}
                 <div>
                   <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 block">
-                    URL de l'image *
+                    Image du produit *
                   </label>
-                  <div className="flex gap-3">
-                    <input
-                      type="url"
-                      value={form.image}
-                      onChange={(e) => setForm({ ...form, image: e.target.value })}
-                      placeholder="https://images.unsplash.com/..."
-                      className="flex-1 bg-gray-50 rounded-2xl px-5 py-3.5 text-sm font-medium outline-none focus:ring-2 focus:ring-violet-500/20 transition-all"
-                      required
-                    />
-                    {form.image && (
-                      <div className="w-14 h-14 rounded-2xl overflow-hidden bg-gray-100 flex-shrink-0">
+
+                  {!imagePreview ? (
+                    <div
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onDrop={handleDrop}
+                      onClick={() => fileInputRef.current?.click()}
+                      className={`relative border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all duration-300 ${
+                        isDragging
+                          ? "border-violet-500 bg-violet-50 scale-[1.02]"
+                          : "border-gray-200 bg-gray-50/50 hover:border-violet-300 hover:bg-violet-50/30"
+                      }`}
+                    >
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept={ACCEPTED_FORMATS}
+                        onChange={handleInputChange}
+                        className="hidden"
+                      />
+                      <div className="flex flex-col items-center gap-3">
+                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-colors ${
+                          isDragging ? "bg-violet-100" : "bg-gray-100"
+                        }`}>
+                          <Upload className={`w-6 h-6 ${isDragging ? "text-violet-500" : "text-gray-400"}`} />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-gray-700">
+                            {isDragging ? "Déposez l'image ici" : "Glissez-déposez votre image ici"}
+                          </p>
+                          <p className="text-xs text-gray-400 mt-1">
+                            ou <span className="text-violet-500 font-semibold">parcourez vos fichiers</span>
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-300 bg-gray-100 px-2 py-1 rounded-lg">JPG</span>
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-300 bg-gray-100 px-2 py-1 rounded-lg">PNG</span>
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-violet-400 bg-violet-50 px-2 py-1 rounded-lg">→ WEBP</span>
+                        </div>
+                        <p className="text-[10px] text-gray-300">Max. 5 Mo • Conversion auto en WebP</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="relative group">
+                      <div className="rounded-2xl overflow-hidden bg-gray-100 border border-gray-200">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={form.image} alt="preview" className="w-full h-full object-cover" onError={(e: any) => { e.target.style.display = "none"; }} />
+                        <img
+                          src={imagePreview}
+                          alt="Aperçu du produit"
+                          className="w-full h-48 object-contain bg-white"
+                        />
                       </div>
-                    )}
-                    {!form.image && (
-                      <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center flex-shrink-0">
-                        <ImageIcon className="w-5 h-5 text-gray-300" />
+                      <div className="absolute inset-0 bg-black/40 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="bg-white text-gray-800 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-gray-100 transition-colors flex items-center gap-1.5"
+                        >
+                          <Upload className="w-3.5 h-3.5" />
+                          Changer
+                        </button>
+                        <button
+                          type="button"
+                          onClick={removeImage}
+                          className="bg-red-500 text-white px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-red-600 transition-colors flex items-center gap-1.5"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          Supprimer
+                        </button>
                       </div>
-                    )}
-                  </div>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept={ACCEPTED_FORMATS}
+                        onChange={handleInputChange}
+                        className="hidden"
+                      />
+                      {imageFile && (
+                        <div className="flex items-center gap-2 mt-2 text-xs text-gray-400">
+                          <CheckCircle className="w-3.5 h-3.5 text-green-500" />
+                          <span>{imageFile.name}</span>
+                          <span className="text-gray-300">•</span>
+                          <span>{(imageFile.size / 1024).toFixed(0)} Ko → WebP</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Couleurs */}
@@ -407,15 +600,15 @@ export default function AddProductModal({ isOpen, onClose, onSuccess, editProduc
                   </button>
                   <button
                     type="submit"
-                    disabled={loading}
+                    disabled={loading || uploading}
                     className="flex-1 py-4 rounded-2xl bg-violet-600 text-white text-sm font-black uppercase tracking-widest hover:bg-violet-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                   >
-                    {loading ? (
+                    {loading || uploading ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
                       <Plus className="w-4 h-4" />
                     )}
-                    {loading ? "Enregistrement..." : editProduct ? "Mettre à jour" : "Ajouter le Produit"}
+                    {uploading ? "Conversion & Upload..." : loading ? "Enregistrement..." : editProduct ? "Mettre à jour" : "Ajouter le Produit"}
                   </button>
                 </div>
               </form>
