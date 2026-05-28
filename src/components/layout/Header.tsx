@@ -8,8 +8,8 @@ import { Search, Heart, ShoppingBag, User, Menu, X, Sparkles, Star, Baby, Layers
 import { motion, AnimatePresence } from "framer-motion";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
-import { products } from "@/data/products";
 import { Product } from "@/types";
+import { createClient } from "@/lib/supabase/client";
 
 const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -23,12 +23,14 @@ const Header = () => {
   const { totalItems: wishlistTotal, openDrawer: openWishlistDrawer } = useWishlist();
   const router = useRouter();
   const pathname = usePathname();
-  const [isLoggedIn, setIsLoggedIn] = useState(false); // Déconnecté par défaut
+  const [user, setUser] = useState<any>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const searchRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
+  const supabase = createClient();
+  const [dbProducts, setDbProducts] = useState<Product[]>([]);
 
   const isHome = pathname === "/";
   const isTransparent = isHome && !isScrolled;
@@ -37,10 +39,25 @@ const Header = () => {
   const normalize = (str?: string) =>
     (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
+  // Charger les produits de Supabase sur le client pour la recherche instantanée
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const { data, error } = await supabase.from("products").select("*");
+        if (!error && data) {
+          setDbProducts(data as Product[]);
+        }
+      } catch (err) {
+        console.error("Erreur lors de la récupération des produits client-side :", err);
+      }
+    };
+    fetchProducts();
+  }, []);
+
   useEffect(() => {
     if (searchQuery.trim().length > 0) {
       const queryTerms = normalize(searchQuery).split(/\s+/).filter(Boolean);
-      const filtered = products.filter(product => {
+      const filtered = dbProducts.filter(product => {
         const searchableText = normalize(`${product.name} ${product.category} ${product.gender} ${product.tag || ""}`);
         return queryTerms.every(term => searchableText.includes(term));
       });
@@ -50,7 +67,7 @@ const Header = () => {
       setSuggestions([]);
       setShowSuggestions(false);
     }
-  }, [searchQuery]);
+  }, [searchQuery, dbProducts]);
 
   // Fermer les suggestions si on clique en dehors
   useEffect(() => {
@@ -83,9 +100,32 @@ const Header = () => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 50);
     };
+
+    // Vérifier l'état initial de l'utilisateur
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+    };
+    getUser();
+
+    // Écouter les changements d'auth
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
     window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      subscription.unsubscribe();
+    };
   }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setIsProfileOpen(false);
+    router.push("/");
+    router.refresh();
+  };
 
   useEffect(() => {
     if (isMobileMenuOpen) {
@@ -360,7 +400,7 @@ const Header = () => {
             >
               <button 
                 onClick={() => {
-                  if (isLoggedIn) {
+                  if (user) {
                     setIsProfileOpen(!isProfileOpen);
                   } else {
                     router.push("/auth/login");
@@ -372,7 +412,7 @@ const Header = () => {
               </button>
 
               <AnimatePresence>
-                {isLoggedIn && isProfileOpen && (
+                {user && isProfileOpen && (
                   <motion.div
                     initial={{ opacity: 0, y: 10, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -381,15 +421,11 @@ const Header = () => {
                   >
                     <div className="px-4 py-3 border-b border-gray-100 mb-2">
                       <p className="text-[10px] font-black uppercase text-gray-400">Compte</p>
-                      <p className="text-xs font-black truncate">Mon Profil Client</p>
+                      <p className="text-xs font-black truncate">{user.user_metadata?.full_name || user.email}</p>
                     </div>
                     <button 
-                      onClick={() => {
-                        setIsLoggedIn(false);
-                        setIsProfileOpen(false);
-                        router.push("/");
-                      }}
-                      className="w-full text-left px-4 py-3 text-[11px] font-black uppercase tracking-widest hover:bg-red-50 hover:text-red-600 rounded-xl transition-all"
+                      onClick={handleLogout}
+                      className="w-full text-left px-4 py-3 text-[11px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white rounded-xl transition-all"
                     >
                       Déconnexion
                     </button>
@@ -558,12 +594,11 @@ const Header = () => {
               <div className="mt-auto border-t pt-8 pb-12">
                 <div className="flex flex-col space-y-6">
                   <div className="flex flex-col space-y-4">
-                    {isLoggedIn ? (
+                    {user ? (
                       <button 
                         onClick={() => {
-                          setIsLoggedIn(false);
+                          handleLogout();
                           setIsMobileMenuOpen(false);
-                          router.push("/");
                         }}
                         className="flex items-center space-x-4 text-red-600 transition-colors"
                       >

@@ -7,13 +7,45 @@ import { User, Lock, Mail, ArrowRight, UserPlus } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 
+import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
+
 export default function RegisterPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+  const supabase = createClient();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    try {
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: name,
+          },
+        },
+      });
+
+      if (signUpError) throw signUpError;
+
+      if (data.user) {
+        alert("Compte créé avec succès ! Veuillez vérifier votre email pour confirmer l'inscription.");
+        router.push("/auth/login");
+      }
+    } catch (err: any) {
+      setError(err.message || "Une erreur est survenue lors de l'inscription.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -114,12 +146,19 @@ export default function RegisterPage() {
               En créant un compte, vous acceptez notre <span className="text-white cursor-pointer underline">Politique de confidentialité</span>.
             </p>
 
+            {error && (
+              <div className="bg-red-600/10 border border-red-600/20 text-red-600 text-[10px] font-black uppercase tracking-widest p-4 rounded-xl text-center">
+                {error}
+              </div>
+            )}
+
             <button 
               type="submit"
-              className="w-full bg-white text-black font-black py-5 rounded-2xl uppercase tracking-[4px] text-xs hover:bg-red-600 hover:text-white transition-all shadow-xl flex items-center justify-center gap-3 mt-4"
+              disabled={loading}
+              className={`w-full bg-white text-black font-black py-5 rounded-2xl uppercase tracking-[4px] text-xs hover:bg-red-600 hover:text-white transition-all shadow-xl flex items-center justify-center gap-3 mt-4 ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              Rejoindre Yoota
-              <ArrowRight className="w-4 h-4" />
+              {loading ? "Chargement..." : "Rejoindre Yoota"}
+              {!loading && <ArrowRight className="w-4 h-4" />}
             </button>
           </form>
 

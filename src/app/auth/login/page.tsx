@@ -7,12 +7,37 @@ import { User, Lock, Mail, ArrowRight } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 
+import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
+
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+  const supabase = createClient();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    try {
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (signInError) throw signInError;
+
+      router.push("/");
+      router.refresh(); // Pour mettre à jour l'état de l'utilisateur dans le Header
+    } catch (err: any) {
+      setError(err.message || "Email ou mot de passe incorrect.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -103,12 +128,19 @@ export default function LoginPage() {
               </button>
             </div>
 
+            {error && (
+              <div className="bg-red-600/10 border border-red-600/20 text-red-600 text-[10px] font-black uppercase tracking-widest p-4 rounded-xl text-center">
+                {error}
+              </div>
+            )}
+
             <button 
               type="submit"
-              className="w-full bg-white text-black font-black py-5 rounded-2xl uppercase tracking-[4px] text-xs hover:bg-red-600 hover:text-white transition-all shadow-xl flex items-center justify-center gap-3 mt-4"
+              disabled={loading}
+              className={`w-full bg-white text-black font-black py-5 rounded-2xl uppercase tracking-[4px] text-xs hover:bg-red-600 hover:text-white transition-all shadow-xl flex items-center justify-center gap-3 mt-4 ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              Se connecter
-              <ArrowRight className="w-4 h-4" />
+              {loading ? "Connexion..." : "Se connecter"}
+              {!loading && <ArrowRight className="w-4 h-4" />}
             </button>
           </form>
 

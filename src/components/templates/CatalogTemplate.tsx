@@ -6,7 +6,7 @@ import MobileFilterDrawer from "@/components/filters/MobileFilterDrawer";
 import ProductGrid from "@/components/products/ProductGrid";
 import SortDropdown from "@/components/ui/SortDropdown";
 import Link from "next/link";
-import { products } from "@/data/products";
+import { getProducts } from "@/lib/supabase/queries";
 import { Product } from "@/types";
 import { ChevronRight, X } from "lucide-react";
 
@@ -43,6 +43,9 @@ export default async function CatalogTemplate({
   // Normalisation string pour la recherche
   const normalize = (str?: string) => 
     (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+  // On récupère dynamiquement les produits depuis Supabase
+  const products = await getProducts();
 
   // On commence par filtrer par la catégorie principale (ex: Homme, Femme, Nouveautés...)
   let baseProducts = products.filter(baseFilter);

@@ -12,8 +12,25 @@ const SuccessPage = () => {
   const { clearCart } = useCart();
 
   useEffect(() => {
-    // On vide le panier une fois le paiement réussi
+    // 1. Vider le panier local
     clearCart();
+
+    // 2. Vérifier la transaction Stripe côté serveur et valider en base
+    const queryParams = new URLSearchParams(window.location.search);
+    const sessionId = queryParams.get("session_id");
+
+    if (sessionId) {
+      fetch(`/api/checkout/verify?session_id=${sessionId}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success) {
+            console.log("Paiement vérifié avec succès et statut mis à jour en base.");
+          }
+        })
+        .catch((err) => {
+          console.error("Erreur lors de la vérification de la commande :", err);
+        });
+    }
   }, [clearCart]);
 
   return (

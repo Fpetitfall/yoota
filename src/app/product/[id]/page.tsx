@@ -2,13 +2,14 @@ import React from "react";
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { products } from "@/data/products";
+import { getProducts, getProductById } from "@/lib/supabase/queries";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { ChevronRight } from "lucide-react";
 import ProductDisplay from "@/components/products/ProductDisplay";
 
 export async function generateStaticParams() {
+  const products = await getProducts();
   return products.map((product) => ({
     id: product.id,
   }));
@@ -16,13 +17,14 @@ export async function generateStaticParams() {
 
 export default async function ProductPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = await params;
-  const product = products.find((p) => p.id === resolvedParams.id);
+  const product = await getProductById(resolvedParams.id);
 
   if (!product) {
     notFound();
   }
 
   // Des produits similaires (même catégorie ou même genre, excluant le produit actuel)
+  const products = await getProducts();
   const similarProducts = products
     .filter((p) => p.id !== product.id && (p.category === product.category || p.gender === product.gender))
     .slice(0, 4);

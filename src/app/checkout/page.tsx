@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import PaymentMethods, { PaymentMethod } from "@/components/checkout/PaymentMethods";
@@ -13,6 +13,7 @@ import { loadStripe } from "@stripe/stripe-js";
 import { useCart } from "@/context/CartContext";
 import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY as string);
 
@@ -21,10 +22,47 @@ const CheckoutPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { cart, totalPrice, clearCart } = useCart();
   const router = useRouter();
+  const supabase = createClient();
+
+  // États du formulaire de livraison
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [address, setAddress] = useState("");
+  const [city, setCity] = useState("");
+  const [phone, setPhone] = useState("");
+  const [userId, setUserId] = useState<string | null>(null);
+
+  // Pré-remplir le formulaire si l'utilisateur est déjà connecté
+  useEffect(() => {
+    const getUser = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          setUserId(user.id);
+          setEmail(user.email || "");
+          if (user.user_metadata?.full_name) {
+            const names = user.user_metadata.full_name.split(" ");
+            setFirstName(names[0] || "");
+            setLastName(names.slice(1).join(" ") || "");
+          }
+        }
+      } catch (err) {
+        console.error("Erreur lors de la récupération de l'utilisateur connecté :", err);
+      }
+    };
+    getUser();
+  }, [supabase]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+
+    if (!firstName || !lastName || !email || !address || !city || !phone) {
+      alert("Veuillez remplir tous les champs de livraison.");
+      setIsLoading(false);
+      return;
+    }
 
     try {
       if (paymentMethod === "stripe") {
@@ -35,6 +73,15 @@ const CheckoutPage = () => {
             items: cart,
             successUrl: `${window.location.origin}/checkout/success`,
             cancelUrl: `${window.location.origin}/checkout`,
+            customerDetails: {
+              firstName,
+              lastName,
+              email,
+              address,
+              city,
+              phone,
+              userId,
+            }
           }),
         });
 
@@ -42,14 +89,37 @@ const CheckoutPage = () => {
         if (data.url) {
           window.location.href = data.url;
         } else {
-          throw new Error(data.error || "Erreur lors de la création de la session");
+          throw new Error(data.error || "Erreur lors de la création de la session de paiement");
         }
       } else {
-        // Simulation Wave / OM
-        setTimeout(() => {
-          alert(`Redirection vers la plateforme ${paymentMethod.toUpperCase()}...`);
-          setIsLoading(false);
-        }, 1500);
+        // Simulation pour Wave / Orange Money ou autre méthode alternative
+        const response = await fetch("/api/orders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            items: cart,
+            totalAmount: totalPrice,
+            paymentMethod,
+            customerDetails: {
+              firstName,
+              lastName,
+              email,
+              address,
+              city,
+              phone,
+              userId,
+            }
+          }),
+        });
+
+        const data = await response.json();
+        if (data.success) {
+          alert(`Commande enregistrée ! Redirection vers la plateforme de paiement ${paymentMethod.toUpperCase()}...`);
+          await clearCart();
+          router.push("/checkout/success");
+        } else {
+          throw new Error(data.error || "Erreur lors de l'enregistrement de la commande");
+        }
       }
     } catch (error: any) {
       console.error("Payment Error:", error);
@@ -85,36 +155,78 @@ const CheckoutPage = () => {
                   </div>
                 </div>
 
-                <form className="space-y-6">
+                <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <label className="text-[10px] font-black uppercase tracking-widest text-secondary px-1">Prénom</label>
-                      <input type="text" className="w-full bg-accent border-none rounded-2xl px-6 py-4 text-sm font-medium focus:ring-2 focus:ring-black/5 transition-all" placeholder="John" />
+                      <input 
+                        type="text" 
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        className="w-full bg-accent border-none rounded-2xl px-6 py-4 text-sm font-medium focus:ring-2 focus:ring-black/5 transition-all" 
+                        placeholder="John" 
+                        required 
+                      />
                     </div>
                     <div className="space-y-2">
                       <label className="text-[10px] font-black uppercase tracking-widest text-secondary px-1">Nom</label>
-                      <input type="text" className="w-full bg-accent border-none rounded-2xl px-6 py-4 text-sm font-medium focus:ring-2 focus:ring-black/5 transition-all" placeholder="Doe" />
+                      <input 
+                        type="text" 
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        className="w-full bg-accent border-none rounded-2xl px-6 py-4 text-sm font-medium focus:ring-2 focus:ring-black/5 transition-all" 
+                        placeholder="Doe" 
+                        required 
+                      />
                     </div>
                   </div>
 
                   <div className="space-y-2">
                     <label className="text-[10px] font-black uppercase tracking-widest text-secondary px-1">Adresse Email</label>
-                    <input type="email" className="w-full bg-accent border-none rounded-2xl px-6 py-4 text-sm font-medium focus:ring-2 focus:ring-black/5 transition-all" placeholder="john@example.com" />
+                    <input 
+                      type="email" 
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full bg-accent border-none rounded-2xl px-6 py-4 text-sm font-medium focus:ring-2 focus:ring-black/5 transition-all" 
+                      placeholder="john@example.com" 
+                      required 
+                    />
                   </div>
 
                   <div className="space-y-2">
                     <label className="text-[10px] font-black uppercase tracking-widest text-secondary px-1">Adresse de livraison</label>
-                    <input type="text" className="w-full bg-accent border-none rounded-2xl px-6 py-4 text-sm font-medium focus:ring-2 focus:ring-black/5 transition-all" placeholder="Rue de l'Indépendance, Dakar" />
+                    <input 
+                      type="text" 
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      className="w-full bg-accent border-none rounded-2xl px-6 py-4 text-sm font-medium focus:ring-2 focus:ring-black/5 transition-all" 
+                      placeholder="Rue de l'Indépendance, Dakar" 
+                      required 
+                    />
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <label className="text-[10px] font-black uppercase tracking-widest text-secondary px-1">Ville</label>
-                      <input type="text" className="w-full bg-accent border-none rounded-2xl px-6 py-4 text-sm font-medium focus:ring-2 focus:ring-black/5 transition-all" placeholder="Dakar" />
+                      <input 
+                        type="text" 
+                        value={city}
+                        onChange={(e) => setCity(e.target.value)}
+                        className="w-full bg-accent border-none rounded-2xl px-6 py-4 text-sm font-medium focus:ring-2 focus:ring-black/5 transition-all" 
+                        placeholder="Dakar" 
+                        required 
+                      />
                     </div>
                     <div className="space-y-2">
                       <label className="text-[10px] font-black uppercase tracking-widest text-secondary px-1">Téléphone</label>
-                      <input type="tel" className="w-full bg-accent border-none rounded-2xl px-6 py-4 text-sm font-medium focus:ring-2 focus:ring-black/5 transition-all" placeholder="+221 77 000 00 00" />
+                      <input 
+                        type="tel" 
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        className="w-full bg-accent border-none rounded-2xl px-6 py-4 text-sm font-medium focus:ring-2 focus:ring-black/5 transition-all" 
+                        placeholder="+221 77 000 00 00" 
+                        required 
+                      />
                     </div>
                   </div>
                 </form>
@@ -148,7 +260,34 @@ const CheckoutPage = () => {
                       onApprove={async (data, actions) => {
                         if (actions.order) {
                           const details = await actions.order.capture();
+                          
+                          // Enregistrer la commande PayPal en base
+                          try {
+                            await fetch("/api/orders", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                items: cart,
+                                totalAmount: totalPrice,
+                                paymentMethod: "paypal",
+                                paymentStatus: "paid",
+                                customerDetails: {
+                                  firstName,
+                                  lastName,
+                                  email,
+                                  address,
+                                  city,
+                                  phone,
+                                  userId,
+                                }
+                              }),
+                            });
+                          } catch (err) {
+                            console.error("PayPal DB order creation error:", err);
+                          }
+
                           alert("Transaction réussie par " + (details.payer?.name?.given_name || "Client"));
+                          await clearCart();
                           router.push("/checkout/success");
                         }
                       }}
