@@ -48,9 +48,9 @@ export default async function CatalogTemplate({
   const products = await getProducts();
 
   // On commence par filtrer par la catégorie principale (ex: Homme, Femme, Nouveautés...)
-  let baseProducts = products.filter(baseFilter);
+  const baseProducts = (products || []).filter(baseFilter);
 
-  let filteredProducts = baseProducts.filter(product => {
+  const filteredProducts = baseProducts.filter(product => {
     // 1. Recherche par mot-clé (q)
     if (q) {
       const searchableText = normalize(
@@ -109,7 +109,7 @@ export default async function CatalogTemplate({
   });
 
   // Tri
-  filteredProducts = filteredProducts.sort((a, b) => {
+  const sortedProducts = [...filteredProducts].sort((a, b) => {
     if (sort === 'price_asc') return a.price - b.price;
     if (sort === 'price_desc') return b.price - a.price;
     if (sort === 'rating') return (b.rating || 0) - (a.rating || 0);
@@ -160,7 +160,7 @@ export default async function CatalogTemplate({
               {/* Mobile Title */}
               <div className="lg:hidden text-center mb-8 flex flex-col items-center">
                 <h1 className="text-3xl font-bold mb-2">{q ? `Résultats pour "${q}"` : title}</h1>
-                <span className="text-secondary text-sm mb-3">({filteredProducts.length} produits)</span>
+                <span className="text-secondary text-sm mb-3">({sortedProducts.length} produits)</span>
                 {q && (
                   <Link href="?" className="inline-flex items-center space-x-1 text-sm font-medium text-black border border-black px-4 py-2 rounded-full hover:bg-black hover:text-white transition-colors">
                     <X className="w-4 h-4" />
@@ -175,7 +175,7 @@ export default async function CatalogTemplate({
                   <MobileFilterDrawer />
                   <div className="hidden lg:flex items-baseline space-x-2">
                     <h1 className="text-2xl font-bold">{q ? `Résultats pour "${q}"` : title}</h1>
-                    <span className="text-secondary text-sm">({filteredProducts.length} produits)</span>
+                    <span className="text-secondary text-sm">({sortedProducts.length} produits)</span>
                   </div>
                 </div>
                 <div className="flex-shrink-0">
@@ -184,8 +184,8 @@ export default async function CatalogTemplate({
               </div>
 
               {/* Product Grid */}
-              {filteredProducts.length > 0 ? (
-                <ProductGrid products={filteredProducts} />
+              {sortedProducts.length > 0 ? (
+                <ProductGrid products={sortedProducts} />
               ) : (
                 <div className="text-center py-20 flex flex-col items-center">
                   <h2 className="text-2xl font-bold mb-4">Aucun produit trouvé</h2>

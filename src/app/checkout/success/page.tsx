@@ -10,8 +10,10 @@ import Footer from "@/components/layout/Footer";
 
 const SuccessPage = () => {
   const { clearCart } = useCart();
+  const [orderNumber, setOrderNumber] = React.useState("");
 
   useEffect(() => {
+    setOrderNumber(`#YT-${Math.floor(Math.random() * 100000)}`);
     // 1. Vider le panier local
     clearCart();
 
@@ -64,7 +66,7 @@ const SuccessPage = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <div className="flex flex-col items-center">
                   <p className="text-[10px] font-black uppercase tracking-widest text-secondary mb-2">N° Commande</p>
-                  <p className="font-bold">#YT-{Math.floor(Math.random() * 100000)}</p>
+                  <p className="font-bold">{orderNumber || "Chargement..."}</p>
                 </div>
                 <div className="flex flex-col items-center">
                   <p className="text-[10px] font-black uppercase tracking-widest text-secondary mb-2">Date</p>
